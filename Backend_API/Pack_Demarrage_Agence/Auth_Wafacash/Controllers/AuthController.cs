@@ -53,7 +53,7 @@ public class AuthController(
             Email = req.Email,
             Username = req.Username,
             PasswordHash = hasher.Hash(req.Password),
-            IsActive = true
+            IsActive = false
         };
 
         try
@@ -75,7 +75,7 @@ public class AuthController(
             await db.SaveChangesAsync();
 
             await audit.LogAsync(null, "Register", $"UserId={user.Id}, Roles={string.Join(",", req.Roles)}", Ip, UA);
-            return Ok(new { message = "Utilisateur créé avec succès.", userId = user.Id });
+            return Ok(new { message = "Compte créé. En attente d'approbation par un administrateur.", userId = user.Id });
         }
         catch (DbUpdateException ex)
         {
@@ -95,15 +95,38 @@ public class AuthController(
     public async Task<ActionResult<LoginResponse>> Login(LoginRequest req)
     {
         var now = DateTimeOffset.UtcNow;
-        var user = await db.Users.Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
+        var user = await db.Users
+            .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
             .SingleOrDefaultAsync(u => u.Email == req.Identifier || u.Username == req.Identifier);
 
         if (user is not null && user.LockedUntil is not null && user.LockedUntil > now)
             return StatusCode(423, new { message = "Compte verrouillé 15 min." });
 
-        var ok = user is not null && hasher.Verify(user.PasswordHash, req.Password) && user.IsActive;
+        var passwordOk = user is not null && hasher.Verify(user.PasswordHash, req.Password);
 
-        db.LoginAttempts.Add(new LoginAttempt { UserId = user?.Id, UsernameOrEmail = req.Identifier, Succeeded = ok, IpAddress = Ip });
+        // ⬇️ nouveau : mdp OK mais compte pas approuvé → 403
+        if (passwordOk && user!.IsActive == false)
+        {
+            db.LoginAttempts.Add(new LoginAttempt
+            {
+                UserId = user.Id,
+                UsernameOrEmail = req.Identifier,
+                Succeeded = false,
+                IpAddress = Ip
+            });
+            await db.SaveChangesAsync();
+            return StatusCode(403, new { message = "Compte en attente d'approbation par l'administrateur." });
+        }
+
+        var ok = passwordOk && user!.IsActive;
+
+        db.LoginAttempts.Add(new LoginAttempt
+        {
+            UserId = user?.Id,
+            UsernameOrEmail = req.Identifier,
+            Succeeded = ok,
+            IpAddress = Ip
+        });
         await db.SaveChangesAsync();
 
         if (!ok)
@@ -111,8 +134,14 @@ public class AuthController(
             if (user is not null)
             {
                 var since = now.AddMinutes(-15);
-                var fails = await db.LoginAttempts.Where(a => a.UserId == user.Id && !a.Succeeded && a.OccurredAt >= since).CountAsync();
-                if (fails >= 5) { user.LockedUntil = now.AddMinutes(15); await db.SaveChangesAsync(); }
+                var fails = await db.LoginAttempts
+                    .Where(a => a.UserId == user.Id && !a.Succeeded && a.OccurredAt >= since)
+                    .CountAsync();
+                if (fails >= 5)
+                {
+                    user.LockedUntil = now.AddMinutes(15);
+                    await db.SaveChangesAsync();
+                }
             }
             return Unauthorized(new { message = "Identifiant ou mot de passe invalide" });
         }
@@ -124,7 +153,14 @@ public class AuthController(
         var (access, exp) = tokens.CreateAccessToken(user.Id, user.Username, roles);
         var refresh = tokens.CreateRefreshToken();
 
-        db.RefreshTokens.Add(new RefreshToken { UserId = user.Id, Token = refresh, ExpiresAt = now.AddDays(7), IpAddress = Ip, DeviceInfo = UA });
+        db.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = user.Id,
+            Token = refresh,
+            ExpiresAt = now.AddDays(7),
+            IpAddress = Ip,
+            DeviceInfo = UA
+        });
         await db.SaveChangesAsync();
 
         await audit.LogAsync(user.Id, "Login", null, Ip, UA);
@@ -161,4 +197,65 @@ public class AuthController(
         if (rt is not null) { rt.RevokedAt = DateTimeOffset.UtcNow; await db.SaveChangesAsync(); await audit.LogAsync(rt.UserId, "Logout", null, Ip, UA); }
         return Ok(new { message = "Déconnecté." });
     }
+    // Lister les utilisateurs en attente
+    [HttpGet("pending-users")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> PendingUsers()
+    {
+        var users = await db.Users
+            .Where(u => !u.IsActive)
+            .Select(u => new {
+                u.Id,
+                u.Name,
+                u.Email,
+                u.Username,
+                Roles = u.UserRoles.Select(ur => ur.Role.Name).ToArray()
+            })
+            .ToListAsync();
+        return Ok(users);
+    }
+
+    // Approuver un utilisateur
+    [HttpPost("users/{id:int}/approve")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> ApproveUser(int id)
+    {
+        var u = await db.Users.FindAsync(id);
+        if (u is null) return NotFound(new { message = "Utilisateur introuvable." });
+        if (u.IsActive) return BadRequest(new { message = "Déjà approuvé." });
+
+        u.IsActive = true;
+        u.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync();
+
+        await audit.LogAsync(id, "ApproveUser", null, Ip, UA);
+        return Ok(new { message = "Utilisateur approuvé." });
+    }
+
+    // Rejeter (supprimer) un utilisateur en attente
+    [HttpPost("users/{id:int}/reject")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> RejectUser(int id)
+    {
+        var u = await db.Users
+            .Include(x => x.UserRoles)
+            .Include(x => x.RefreshTokens)
+            .SingleOrDefaultAsync(x => x.Id == id);
+
+        if (u is null) return NotFound(new { message = "Utilisateur introuvable." });
+        if (u.IsActive) return BadRequest(new { message = "Déjà approuvé. Désactivez plutôt le compte si besoin." });
+
+        db.UserRoles.RemoveRange(u.UserRoles);
+        db.RefreshTokens.RemoveRange(u.RefreshTokens);
+        db.Users.Remove(u);
+        await db.SaveChangesAsync();
+
+        await audit.LogAsync(id, "RejectUser", null, Ip, UA);
+        return Ok(new { message = "Utilisateur rejeté et supprimé." });
+    }
+
+
+
+
+
 }

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
@@ -41,7 +41,7 @@ builder.Services.AddAuthorization(opts =>
     // ?? plus de politique AdminOnly
     opts.AddPolicy("CommercialOnly", p => p.RequireRole("Commercial"));
     opts.AddPolicy("SupportOnly", p => p.RequireRole("Support_IT"));
-    opts.AddPolicy("AdminOnly", p => p.RequireRole("Admin_Only"));
+    opts.AddPolicy("AdminOnly", p => p.RequireRole("Admin")); ;
 
 });
 
@@ -82,22 +82,47 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Migrate + Seed (sans r�le Admin, sans user admin)
+
+// Migrate + Seed
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
 
+    // Seed des rôles
     if (!db.Roles.Any())
     {
         db.Roles.AddRange(
             new Role { Name = "Commercial" },
-            new Role { Name = "Support_IT" }
+            new Role { Name = "Support_IT" },
+            new Role { Name = "Admin" } // ✅ ajouté
         );
         await db.SaveChangesAsync();
     }
-}
 
+    // (Optionnel) seed d’un utilisateur admin
+    if (!db.Users.Any(u => u.Username == "admin"))
+    {
+        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+        var admin = new User
+        {
+            Name = "Super Admin",
+            Email = "admin@wafa.local",
+            Username = "admin",
+            PasswordHash = hasher.Hash("Admin@123!"),
+            IsActive = true
+        };
+        db.Users.Add(admin);
+        await db.SaveChangesAsync();
+
+        var adminRoleId = db.Roles.Single(r => r.Name == "Admin").Id;
+        db.UserRoles.Add(new UserRole { UserId = admin.Id, RoleId = adminRoleId });
+        await db.SaveChangesAsync();
+    }
+
+
+
+}
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
