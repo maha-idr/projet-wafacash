@@ -1,0 +1,6 @@
+@Pack_Demarrage_Agence_HostAddress = http://localhost:5049
+
+GET {{Pack_Demarrage_Agence_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
