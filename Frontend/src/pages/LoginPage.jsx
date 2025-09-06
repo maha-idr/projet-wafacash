@@ -1,5 +1,5 @@
 import { useState } from "react";
-import api from "../api/client";
+import { api } from "../api/client";
 import { setAuth } from "../auth/useAuth";
 
 export default function LoginPage() {
@@ -23,8 +23,13 @@ export default function LoginPage() {
         expiresAt: data.expiresAt,
         remember,
       });
-      if (data.role === "Commercial") window.location.href = "/saisie";
-      else window.location.href = "/affectation";
+      
+      // Redirection basée sur le rôle
+      if (data.role === "Commercial") {
+        window.location.href = "/saisie";
+      } else {
+        window.location.href = "/affectation";
+      }
     } catch (err) {
       const apiData = err?.response?.data;
       const errMsg =
@@ -126,7 +131,10 @@ export default function LoginPage() {
         </form>
 
         {/* Footer */}
-        
+        <div style={styles.footer}>
+          <a href="/register" style={styles.link}>Créer un compte</a>
+          <div style={styles.copy}>© 2025 Wafacash. Tous droits réservés.</div>
+        </div>
       </div>
     </div>
   );
@@ -135,27 +143,25 @@ export default function LoginPage() {
 /* --- styles --- */
 const styles = {
   screen: {
-    position: "fixed",   // occupe tout l’écran
-    inset: 0,            
+    position: "fixed",
+    inset: 0,
     width: "100%",
     height: "100%",
     background: "#f5f6f8",
     display: "grid",
-    placeItems: "center", 
+    placeItems: "center",
     padding: "24px",
     boxSizing: "border-box",
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", "Helvetica Neue", Arial',
+    fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", "Helvetica Neue", Arial',
     color: "#101010",
     zIndex: 0,
   },
   card: {
     width: "100%",
-      maxWidth: 380,
+    maxWidth: 380,
     background: "#fff",
     borderRadius: 18,
-    boxShadow:
-      "0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.08)",
+    boxShadow: "0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.08)",
     padding: "32px 36px",
   },
   logoRow: {
@@ -168,7 +174,7 @@ const styles = {
     width: 40,
     height: 40,
     borderRadius: 6,
-    background: "#FFD12F", // jaune
+    background: "#FFD12F",
     display: "grid",
     placeItems: "center",
   },
