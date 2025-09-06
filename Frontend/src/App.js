@@ -1,42 +1,60 @@
-import React, { useState } from "react";
+// Exemple de routage dans App.js
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './components/Login';
+import SaisieCommercial from './components/SaisieCommercial';
+import AffectationSupport from './components/AffectationSupport';
+import ConsultationExport from './components/ConsultationExport';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-export default function App() {
-  const [nom, setNom] = useState("");
-  const [prenom, setPrenom] = useState("");
+const ProtectedRoute = ({ children, requiredRole }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) return <div>Chargement...</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (requiredRole && user.role !== requiredRole && user.role !== 'Admin') {
+    return <Navigate to="/unauthorized" replace />;
+  }
+  
+  return children;
+};
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const response = await fetch("http://localhost:63148/api/demandes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ formData }),
-    });
-
-    if (response.ok) {
-      alert("Demande envoyée !");
-    } else {
-      alert("Erreur lors de l'envoi.");
-    }
-  };
-
+function App() {
   return (
-    <div>
-      <h1>Créer une demande</h1>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Nom"
-          value={nom}
-          onChange={(e) => setNom(e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Prénom"
-          value={prenom}
-          onChange={(e) => setPrenom(e.target.value)}
-        />
-        <button type="submit">Envoyer</button>
-      </form>
-    </div>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route 
+            path="/saisie" 
+            element={
+              <ProtectedRoute requiredRole="Commercial">
+                <SaisieCommercial />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/affectation" 
+            element={
+              <ProtectedRoute requiredRole="Support_IT">
+                <AffectationSupport />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/consultation" 
+            element={
+              <ProtectedRoute>
+                <ConsultationExport />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/unauthorized" element={<div>Accès non autorisé</div>} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
+
+export default App;
