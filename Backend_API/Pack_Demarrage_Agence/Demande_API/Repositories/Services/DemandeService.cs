@@ -3,6 +3,7 @@ using Demande_API.DTO;
 using Demande_API.DTOs;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using WorkflowApp.DTOs;
 using WorkflowApp.Models;
 
@@ -10,16 +11,15 @@ namespace Demande_API.Services
 {
     public class DemandeService : IDemandeService
     {
-        private readonly WafacashDbContext _context;
-
-        public DemandeService(WafacashDbContext context)
+        private readonly IDemandeRepository _repo;
+        public DemandeService(IDemandeRepository repo)
         {
-            _context = context;
+            _repo = repo;
         }
 
-        public Demande CreateDemande(DemandeCreateDto dto)
+        public async Task CreateDemande(DemandeCreateDto dto)
         {
-            var demande = new Demande
+            Demande demande = new Demande
             {
                 Region = dto.Region,
                 TypeReseau = dto.TypeReseau,
@@ -34,15 +34,14 @@ namespace Demande_API.Services
                 Statut = 0,
                 DateSaisie = DateTime.UtcNow
             };
-
-            _context.Demande.Add(demande);
-            _context.SaveChanges();
-            return demande;
+            await _repo.AddAsync(demande);
+            
         }
 
-        public List<DemandeReadDto> GetAllDemandes()
+        public async Task<List<DemandeReadDto>> GetAllDemandesAsync()
         {
-            return _context.Demande.Select(d => new DemandeReadDto
+            var demandes_repo = await _repo.GetAllAsync();
+            return demandes_repo.Select(d => new DemandeReadDto
             {
                 Id = d.Id,
                 Region = d.Region,
@@ -58,14 +57,57 @@ namespace Demande_API.Services
                 Statut = d.Statut,
                 DateSaisie = d.DateSaisie
             }).ToList();
+
         }
 
-        public DemandeReadDto? GetDemandeById(int id)
+        public async Task<DemandeReadDto?> GetDemandeById(int id)
         {
-            var d = _context.Demande.FirstOrDefault(x => x.Id == id);
-            if (d == null) return null;
-
+            Demande demande = await _repo.GetByIdAsync(id);
             return new DemandeReadDto
+            {
+                Id = demande.Id,
+                Region = demande.Region,
+                TypeReseau = demande.TypeReseau,
+                LibelleMandataire = demande.LibelleMandataire,
+                Code = demande.Code,
+                NomAgence = demande.NomAgence,
+                TelephoneContact = demande.TelephoneContact,
+                Ville = demande.Ville,
+                AdresseLivraison = demande.AdresseLivraison,
+                EnvoisModem = demande.EnvoisModem,
+                Modem = demande.Modem,
+                Statut = demande.Statut,
+                DateSaisie = demande.DateSaisie
+            };
+        }
+
+        public async Task<bool> UpdateDemande(int id, DemandeUpdateDto dto)
+        {
+            Demande? demandeExistante = await _repo.GetByIdAsync(id);
+            if (demandeExistante == null) 
+                return false;
+            
+            demandeExistante.Region = dto.Region;
+            demandeExistante.TypeReseau = dto.TypeReseau;
+            demandeExistante.LibelleMandataire = dto.LibelleMandataire;
+            demandeExistante.Code = dto.Code;
+            demandeExistante.NomAgence = dto.NomAgence;
+            demandeExistante.TelephoneContact = dto.TelephoneContact;
+            demandeExistante.Ville = dto.Ville;
+            demandeExistante.AdresseLivraison = dto.AdresseLivraison;
+            demandeExistante.EnvoisModem = dto.EnvoisModem;
+            demandeExistante.Modem = dto.Modem;
+
+            await _repo.UpdateAsync(demandeExistante);
+            return true;
+
+        }
+
+
+        public async Task<List<DemandeConsultationDto>> GetFilteredDemandesAsync(ConsultationFilterDto filters)
+        {
+            var demandes = await _repo.GetDemandesAsync(filters);
+            return demandes.Select(d => new DemandeConsultationDto
             {
                 Id = d.Id,
                 Region = d.Region,
@@ -80,28 +122,8 @@ namespace Demande_API.Services
                 Modem = d.Modem,
                 Statut = d.Statut,
                 DateSaisie = d.DateSaisie
-            };
-        }
+            }).ToList();
 
-        public bool UpdateDemande(int id, DemandeUpdateDto dto)
-        {
-            var d = _context.Demande.FirstOrDefault(x => x.Id == id);
-            if (d == null) return false;
-
-            d.Statut = dto.Statut; // Pour l’instant, seule mise à jour du statut
-
-            _context.SaveChanges();
-            return true;
-        }
-
-        public bool DeleteDemande(int id)
-        {
-            var d = _context.Demande.FirstOrDefault(x => x.Id == id);
-            if (d == null) return false;
-
-            _context.Demande.Remove(d);
-            _context.SaveChanges();
-            return true;
         }
     }
 }

@@ -16,17 +16,17 @@ namespace Demande_API.Controllers
             _service = service;
         }
 
-        [HttpPost]
+        [HttpPost("CreateDemande")]
         public IActionResult CreateDemande([FromBody] DemandeCreateDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var demande = _service.CreateDemande(dto);
-            return Ok(new { message = "Demande enregistrée !", demandeId = demande.Id });
+            return Ok(new { message = "Demande enregistrée !"});
         }
 
         [HttpGet]
-        public IActionResult GetDemandes() => Ok(_service.GetAllDemandes());
+        public async Task<IActionResult> GetDemandesAsync() => Ok(await _service.GetAllDemandesAsync());
 
         [HttpGet("{id}")]
         public IActionResult GetDemandeById(int id)
@@ -37,23 +37,32 @@ namespace Demande_API.Controllers
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdateDemande(int id, [FromBody] DemandeUpdateDto dto)
+        public async Task<IActionResult> UpdateDemande(int id, [FromBody] DemandeUpdateDto dto)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-            var updated = _service.UpdateDemande(id, dto);
-            if (!updated) return NotFound(new { message = "Demande non trouvée" });
+            var updated = await _service.UpdateDemande(id, dto);
+            if (!updated)
+                return NotFound(new { message = "Demande non trouvée" });
 
             return Ok(new { message = "Demande mise à jour !" });
         }
 
-        [HttpDelete("{id}")]
-        public IActionResult DeleteDemande(int id)
-        {
-            var deleted = _service.DeleteDemande(id);
-            if (!deleted) return NotFound(new { message = "Demande non trouvée" });
 
-            return Ok(new { message = "Demande supprimée !" });
+        [HttpPost("filter")]
+        public async Task<IActionResult> GetFilteredDemandes([FromBody] ConsultationFilterDto filters)
+        {
+            try
+            {
+                var demandes = await _service.GetFilteredDemandesAsync(filters);
+                //var demandes = await _demandeRepository.GetDemandesWithFilters(filters);
+                return Ok(demandes);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erreur lors de la récupération des demandes: {ex.Message}");
+            }
         }
 
     }

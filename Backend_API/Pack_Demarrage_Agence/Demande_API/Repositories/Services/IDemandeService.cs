@@ -8,10 +8,10 @@ namespace Demande_API.Services
 {
     public interface IDemandeService
     {
-        Demande CreateDemande(DemandeCreateDto dto);
-        List<DemandeReadDto> GetAllDemandes();
-        DemandeReadDto? GetDemandeById(int id);
-        bool UpdateDemande(int id, DemandeUpdateDto dto);
-        bool DeleteDemande(int id);
+        Task CreateDemande(DemandeCreateDto dto);
+        Task<List<DemandeReadDto>> GetAllDemandesAsync();
+        Task<DemandeReadDto?> GetDemandeById(int id);
+        Task<bool> UpdateDemande(int id, DemandeUpdateDto dto);
+        Task<List<DemandeConsultationDto>> GetFilteredDemandesAsync(ConsultationFilterDto filters);
     }
 }

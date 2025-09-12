@@ -16,10 +16,10 @@ public class DemandeRepository : IDemandeRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<Demande>> GetAll()
+    public async Task<List<Demande>> GetAllAsync()
         => await _context.Demande.ToListAsync();
 
-    public async Task<IEnumerable<Demande>> GetDemandesAsync(ConsultationFilterDto filter)
+    public async Task<List<Demande>> GetDemandesAsync(ConsultationFilterDto filter)
     {
         var query = _context.Demande.AsQueryable();
 
@@ -32,29 +32,29 @@ public class DemandeRepository : IDemandeRepository
 
         // Filtre par statut (si fourni et non vide)
         if (filter.Statut.HasValue)
-            
-        query = query.Where(d => d.Statut == filter.Statut);
+
+            query = query.Where(d => d.Statut == filter.Statut);
 
         return await query.ToListAsync();
     }
 
 
-    public async Task<Demande> GetById(int id)
+    public async Task<Demande?> GetByIdAsync(int id)
         => await _context.Demande.FindAsync(id);
 
-    public async Task Add(Demande demande)
+    public async Task AddAsync(Demande demande)
     {
         _context.Demande.Add(demande);
         await _context.SaveChangesAsync();
     }
 
-    public async Task Update(Demande demande)
+    public async Task UpdateAsync(Demande demande)
     {
         _context.Demande.Update(demande);
         await _context.SaveChangesAsync();
     }
 
-    public async Task Delete(int id)
+    public async Task DeleteAsync(int id)
     {
         var demande = await _context.Demande.FindAsync(id);
         if (demande != null)
@@ -68,9 +68,9 @@ public class DemandeRepository : IDemandeRepository
     {
         return _context.Demande.Where(d => d.Statut == 0);
 
-      
+
     }
-        
+
 
     //var query = _context.Demande.AsQueryable();
 
@@ -118,12 +118,12 @@ public class DemandeRepository : IDemandeRepository
                       .OrderBy(d => d.DateSaisie)
                       .ToListAsync(ct);
 
-    public Task<Demande?> GetByIdAsync(int id, CancellationToken ct = default) =>
-        _context.Demande.FirstOrDefaultAsync(d => d.Id == id, ct);
+    //public Task<Demande?> GetByIdAsync(int id, CancellationToken ct = default) =>
+    //    _context.Demande.FirstOrDefaultAsync(d => d.Id == id, ct);
     public async Task<byte[]> ExportDemandesToCsv(ConsultationFilterDto filters)
     {
         var demandes = await GetDemandesWithFilters(filters);
-        
+
         using (var memoryStream = new MemoryStream())
         using (var streamWriter = new StreamWriter(memoryStream, Encoding.UTF8))
         using (var csvWriter = new CsvWriter(streamWriter, CultureInfo.InvariantCulture))
@@ -138,10 +138,5 @@ public class DemandeRepository : IDemandeRepository
             streamWriter.Flush();
             return memoryStream.ToArray();
         }
-    }
-
-    Task<IEnumerable<DemandeConsultationDto>> IDemandeRepository.GetDemandesWithFilters(ConsultationFilterDto filters)
-    {
-        throw new NotImplementedException();
     }
 }
