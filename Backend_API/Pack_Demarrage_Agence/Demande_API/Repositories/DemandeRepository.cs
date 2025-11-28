@@ -113,30 +113,30 @@ public class DemandeRepository : IDemandeRepository
 
 
 
-    public Task<List<Demande>> GetPendingAsync(CancellationToken ct = default) =>
+    public Task<List<Demande>> GetPendingAsync() =>
         _context.Demande.Where(d => d.Statut == 0)
                       .OrderBy(d => d.DateSaisie)
-                      .ToListAsync(ct);
+                      .ToListAsync();
 
     //public Task<Demande?> GetByIdAsync(int id, CancellationToken ct = default) =>
     //    _context.Demande.FirstOrDefaultAsync(d => d.Id == id, ct);
-    public async Task<byte[]> ExportDemandesToCsv(ConsultationFilterDto filters)
-    {
-        var demandes = await GetDemandesWithFilters(filters);
+    //public async Task<byte[]> ExportDemandesToCsv(ConsultationFilterDto filters)
+    //{
+    //    var demandes = await GetDemandesWithFilters(filters);
 
-        using (var memoryStream = new MemoryStream())
-        using (var streamWriter = new StreamWriter(memoryStream, Encoding.UTF8))
-        using (var csvWriter = new CsvWriter(streamWriter, CultureInfo.InvariantCulture))
-        {
-            // Écrire l'en-tête
-            csvWriter.WriteHeader<DemandeConsultationDto>();
-            csvWriter.NextRecord();
+    //    using (var memoryStream = new MemoryStream())
+    //    using (var streamWriter = new StreamWriter(memoryStream, Encoding.UTF8))
+    //    using (var csvWriter = new CsvWriter(streamWriter, CultureInfo.InvariantCulture))
+    //    {
+    //        // Écrire l'en-tête
+    //        csvWriter.WriteHeader<DemandeConsultationDto>();
+    //        csvWriter.NextRecord();
 
-            // Écrire les données
-            csvWriter.WriteRecords(demandes);
+    //        // Écrire les données
+    //        csvWriter.WriteRecords(demandes);
 
-            streamWriter.Flush();
-            return memoryStream.ToArray();
-        }
-    }
+    //        streamWriter.Flush();
+    //        return memoryStream.ToArray();
+    //    }
+    //}
 }

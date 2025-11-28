@@ -2,7 +2,7 @@
 {
     public class DemandeUpdateDto
     {
-        public object DateSaisie { get; internal set; }
+        public object? DateSaisie { get; internal set; }
 
         public int Id { get; set; }
         public string Region { get; set; }

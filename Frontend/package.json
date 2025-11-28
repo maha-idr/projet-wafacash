@@ -10,17 +10,16 @@
     "axios": "^1.11.0",
     "bootstrap": "^5.3.7",
     "date-fns": "^4.1.0",
-    "react": "^18.3.1",
+    "react": "^19.1.1",
     "react-bootstrap": "^2.10.10",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.22.3",
-    "react-scripts": "5.0.1"
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.8.2",
+    "react-scripts": "^0.0.0"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "eslintConfig": {
     "extends": [
@@ -41,6 +40,8 @@
     ]
   },
   "devDependencies": {
-    "eslint-config-react-app": "^7.0.1"
+    "@vitejs/plugin-react": "^5.0.2",
+    "eslint-config-react-app": "^7.0.1",
+    "vite": "^7.1.5"
   }
 }

@@ -13,5 +13,7 @@ namespace Demande_API.Services
         Task<DemandeReadDto?> GetDemandeById(int id);
         Task<bool> UpdateDemande(int id, DemandeUpdateDto dto);
         Task<List<DemandeConsultationDto>> GetFilteredDemandesAsync(ConsultationFilterDto filters);
+        Task<List<DemandeReadDto>> GetPendingAsync(CancellationToken ct = default);
+
     }
 }

@@ -8,6 +8,9 @@ public interface IDemandeRepository
     Task UpdateAsync(Demande demande);
     Task<List<Demande>> GetDemandesAsync(ConsultationFilterDto filter);
     Task DeleteAsync(int id);
+
+    Task<List<Demande>> GetPendingAsync();      // statut = 0
+
     //Task<List<DemandeConsultationDto>> GetDemandesWithFiltersAsync(ConsultationFilterDto filters);
     //Task<byte[]> ExportDemandesToCsvAsync(ConsultationFilterDto filters);
 }

@@ -1,20 +1,40 @@
-﻿using Demande_API.DTOs;
-using Demande_API.Services;
+﻿using Demande_API.DTO;
+using Demande_API.DTOs;
+using Demande_API.Services;  // ← assure-toi que ceci est présent
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using WorkflowApp.DTOs;
 
 namespace Demande_API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class DemandesController : ControllerBase
+    public class DemandeController : ControllerBase
     {
         private readonly IDemandeService _service;
+        public DemandeController(IDemandeService service) => _service = service;
 
-        public DemandesController(IDemandeService service)
-        {
-            _service = service;
-        }
+        [Authorize(Roles = "Admin")]
+        [HttpGet("pending")]
+        public async Task<ActionResult<List<DemandeReadDto>>> GetPending(CancellationToken ct)
+            => Ok(await _service.GetPendingAsync(ct));
+
+        //[HttpGet("{id:int}")]
+        //public async Task<ActionResult<DemandeReadDto>> GetById(int id, CancellationToken ct)
+        //{
+        //    var d = await _service.GetByIdAsync(id, ct);
+        //    return d is null ? NotFound() : Ok(d);
+        //}
+
+        //[HttpPut("{id:int}/affectation")]
+        //public async Task<IActionResult> UpdateAffectation(int id, [FromBody] UpdateAffectationDto dto, CancellationToken ct)
+        //{
+        //    var ok = await _service.UpdateAffectationAsync(id, dto, ct);
+        //    return ok ? NoContent() : NotFound();
+        //}
 
         [HttpPost("CreateDemande")]
         public IActionResult CreateDemande([FromBody] DemandeCreateDto dto)
@@ -29,9 +49,9 @@ namespace Demande_API.Controllers
         public async Task<IActionResult> GetDemandesAsync() => Ok(await _service.GetAllDemandesAsync());
 
         [HttpGet("{id}")]
-        public IActionResult GetDemandeById(int id)
+        public async Task<IActionResult> GetDemandeById(int id)
         {
-            var demande = _service.GetDemandeById(id);
+            var demande = await _service.GetDemandeById(id);
             if (demande == null) return NotFound(new { message = "Demande non trouvée" });
             return Ok(demande);
         }
